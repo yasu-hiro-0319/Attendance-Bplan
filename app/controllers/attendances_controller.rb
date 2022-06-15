@@ -33,9 +33,20 @@ class AttendancesController < ApplicationController
     ActiveRecord::Base.transaction do # トランザクションを開始します。
       attendances_params.each do |id, item|
         attendance = Attendance.find(id)
-        attendance.update_attributes!(item)
+          if item[:started_at].blank? && item[:finished_at].present?
+            flash[:danger] = "出勤時間が必要です"
+            redirect_to attendances_edit_one_month_user_url(date: params[:date]) and return
+          elsif item[:started_at].present? && item[:finished_at].blank?
+            flash[:danger] = "退勤時間が必要です"
+            redirect_to attendances_edit_one_month_user_url(date: params[:date]) and return
+          elsif item[:started_at] > item[:finished_at]
+            flash[:danger] = "出勤時間より早い退勤時間は無効です"
+            redirect_to attendances_edit_one_month_user_url(date: params[:date]) and return
+          else 
+            attendance.update_attributes!(item)
+          end
+        end
       end
-    end
     flash[:success] = "1ヶ月分の勤怠情報を更新しました。"
     redirect_to user_url(date: params[:date])
   rescue ActiveRecord::RecordInvalid # トランザクションによるエラーの分岐です。
